@@ -1,0 +1,40 @@
+<?php
+// $Id$
+ 
+/**
+ * @file
+ * Drupal Module: kladr
+ */
+
+require_once(drupal_get_path('module', 'kladr') .'/kladr.taxonomy.inc');
+
+/**
+* Implementation of hook_menu().
+*/
+function kladr_menu() {
+
+  $items = array();
+
+  $items['admin/build/kladr'] = array(
+    'title' => t('KLADR'),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('kladr_form'),
+    'access arguments' => array('administer site configuration'),
+    'file' => 'kladr.admin.inc',
+    'file path' => drupal_get_path('module', 'kladr'),
+    'type' => MENU_NORMAL_ITEM,
+   );
+   
+  $items['admin/settings/kladr'] = array(
+    'title' => t('KLADR settings'),
+    'description' => t(''),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('kladr_settings'),
+    'access arguments' => array('administer site configuration'),
+    'file' => 'kladr.admin.inc',
+    'file path' => drupal_get_path('module', 'kladr'),
+    'type' => MENU_NORMAL_ITEM,
+   );
+  return $items;
+}
+

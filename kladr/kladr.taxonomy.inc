@@ -1,0 +1,184 @@
+<?php
+
+/**
+* Set up batch for first and last name loading.
+*
+* This is where Drupal's Batch API comes into play.
+* It's as simple as defining $batch, and then calling batch_set($batch)
+*/
+function kladr_create() {
+
+  // Update the user profiles to add values to newly added profile fields
+  $batch = array(
+    'title' => t('Creating kladr vocabulary'), // Title to display while running.
+    'operations' => array(), // Operations to complete, in order. Defined below.
+    'finished' => '_kladr_vocabulary_finished', // Last function to call.
+    'init_message' => t('Initializing...'),
+    'progress_message' => t('Fixed @current out of @total.'),
+    'error_message' => t('Creating encountered an error.'),
+  );
+
+  // Add as many operations as you need. They'll run in the order specified.
+  // Parameters can be defined in the (currently) empty arrays and will need
+  // to also be added following the $context parameters for the operation
+  // functions below.
+  $batch['operations'][] = array('_kladr_vocabulary_select', array());
+  $batch['operations'][] = array('_kladr_vocabulary_insert', array());
+
+  // Tip the first domino.
+  batch_set($batch);
+}
+
+
+/**
+*
+*/
+function _kladr_vocabulary_select(&$context) {
+
+  $vid = variable_get('kladr_taxonomy', FALSE);
+  if($vid) {
+    $vocabulary = taxonomy_vocabulary_load($vid);
+    
+    if ($vocabulary->name) {
+      $context['message'] = 'Selected taxonomy vocabulary '. $vocabulary->name;
+      $context['finished'] = 1;
+      return;
+    } 
+  }
+  $context['finished'] = 0;
+}
+
+
+/**
+*
+*/
+function _kladr_vocabulary_insert(&$context) {
+
+  $vid = variable_get('kladr_taxonomy', FALSE);
+  if(!$vid) {
+      $context['finished'] = 1;
+      return;
+  }
+
+  // open in read-only mode
+  $db = dbase_open(drupal_get_path('module', 'kladr') .'/BASE/KLADR.DBF', 0);
+
+  if ($db) {
+    $CLADR = array();
+    $NAME_CC = array();
+    
+    $insert_rows_for_one_time = 200000;
+    $start_from_row = variable_get('kladr_taxonomy_last', 1);
+    
+    $record_numbers = dbase_numrecords($db);
+    
+    drupal_set_message('DB opened, ' . $record_numbers . ' records');
+    for ($i = $start_from_row; 
+         $i <= $record_numbers AND $i <= ($start_from_row + $insert_rows_for_one_time); 
+         $i++) {
+      variable_set('kladr_taxonomy_last', $i);
+      
+      $row= dbase_get_record($db, $i);
+      
+      $name=mb_convert_encoding($row[0], "UTF-8", "cp866"); // Наименование
+      $socr=mb_convert_encoding($row[1], "UTF-8", "cp866"); // Сокращенное наименование типа объекта
+      $code=$row[2]; 		// Код
+      $index=$row[3]; 	// Почтовый индекс
+      $gninmb=$row[4]; 	// Код ИФНС
+      $uno=$row[5]; 		// Код территориального участка ИФНС
+      $ocatd=$row[6]; 	// Код ОКАТО
+      $status=$row[7]; 	// Статус объекта
+      
+      $CC = (int)substr($code, 0, 2);
+      $RRR = (int)substr($code, 2, 3);
+      $GGG = (int)substr($code, 5, 3);
+      $PPP = (int)substr($code, 8, 3);
+      $AA = (int)substr($code, 11, 2);
+      
+      if ($RRR==0 AND $GGG==0 AND $PPP==0 AND $AA==0){
+        $NAME_CC[$CC] = $name;
+        
+        $exists = FALSE;
+        $terms = taxonomy_get_term_by_name($name);
+        if(is_array($terms))
+        foreach ($terms as $term){
+          if($term->vid == $vid){
+            $exists = TRUE;
+          }
+        }
+        
+        if (!$exists){
+          $term = array( 'vid' => $vid, 
+                         'name' => $name, 
+                         'parent' => 0 );
+          taxonomy_save_term( $term );
+          db_query('INSERT INTO {kladr_taxonomy} (cc, tid, name) 
+                    VALUES(%d, %d, %d)', $CC, $term['tid'], $name);
+        }
+      }
+      
+      
+      if ($status>0 AND $AA==0){
+        $exists_parent = db_result(db_query("SELECT tid FROM {kladr_taxonomy} 
+                                             WHERE cc = %d", $CC));
+        if ($exists_parent){
+          $term = array( 'vid' => $vid, 
+                         'name' => $name, 
+                         'parent' => $exists_parent );
+          taxonomy_save_term( $term );
+        }
+      }
+      
+    }
+    drupal_set_message('DB last inserted record '. $i);
+    
+    dbase_close($db);
+  }
+  $context['finished'] = 1;
+}
+
+/**
+*
+*/
+function _kladr_vocabulary_finished($success, $results, $operations) {
+
+  if ($success) {
+    $message = t('KLADR taxonomy vocabulary updated.');
+  }
+  else {
+    $message = t('Finished with error.');
+  }
+  drupal_set_message($message);
+}
+
+
+/**
+ * Save recursive array of terms for a vocabulary.
+ *
+ * Example:
+ * <code><?php
+ * $terms = array(
+ *   'Species' => array(
+ *     'Dog',
+ *     'Cat',
+ *     'Bird' ),
+ *   'Sex' => array(
+ *     'Male',
+ *     'Female' ) )
+ * _save_terms_recursive( $vid, $terms );
+ * </code>
+ *
+ * @param int $vid Vocabulary id
+ * @param array $terms Recursive array of terms
+ * @param int $ptid Parent term id (generated by taxonomy_save_term) 
+ */
+function _save_terms_recursive( $vid, &$terms, $ptid=0 ) {
+  foreach ( $terms as $k => $v ) {
+    // simple check for numeric indices (term array without children)
+    $name = is_string( $k ) ? $k : $v;
+    $term = array( 'vid' => $vid, 'name' => $name, 'parent' => $ptid );
+    taxonomy_save_term( $term );
+    if ( is_array( $v ) && count( $v ) )
+      _save_terms_recursive( $vid, $terms[ $k ], $term[ 'tid' ] );
+  }
+}

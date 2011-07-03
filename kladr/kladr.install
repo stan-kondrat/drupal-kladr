@@ -1,0 +1,45 @@
+<?php
+
+
+
+function kladr_schema() {
+  $schema['kladr_taxonomy'] = array(
+    'description' => 'The base table for cladr.',
+    'fields' => array(
+      'kid' => array(
+        'description' => 'The primary identifier for a kladr row.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE),
+      'cc' => array(
+        'description' => 'Code level 1.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0),
+      'tid' => array(
+        'description' => 'Existing term for location.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0),
+      'name' => array(
+        'description' => 'The title of location.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => ''),
+      ),
+    'primary key' => array('kid'),
+  );  
+  
+  return $schema;
+}
+
+function kladr_install() {
+  drupal_install_schema('kladr');
+}
+
+function kladr_uninstall() {
+  drupal_uninstall_schema('kladr');
+}
