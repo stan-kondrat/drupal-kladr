@@ -1,7 +1,5 @@
 <?php
 
-
-
 function kladr_schema() {
   $schema['kladr_taxonomy'] = array(
     'description' => 'The base table for cladr.',
@@ -13,6 +11,12 @@ function kladr_schema() {
         'not null' => TRUE),
       'cc' => array(
         'description' => 'Code level 1.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0),
+      'rrr' => array(
+        'description' => 'Code level 2.',
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
@@ -37,9 +41,9 @@ function kladr_schema() {
 }
 
 function kladr_install() {
-  drupal_install_schema('kladr');
+  // drupal_install_schema('kladr');
 }
 
 function kladr_uninstall() {
-  drupal_uninstall_schema('kladr');
+  // drupal_uninstall_schema('kladr');
 }
