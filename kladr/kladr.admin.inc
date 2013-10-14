@@ -31,9 +31,7 @@ function kladr_settings() {
 /**
 * Use Drupal's Form API (FAPI) to wire up buttons to kick off batch operations.
 */
-function kladr_form(&$form_state) {
-
-  
+function kladr_form($form, &$form_state) {
 
   $form['kladr_batches'] = array(
    '#type' => 'fieldset',
@@ -60,9 +58,10 @@ function kladr_form(&$form_state) {
 */
 function kladr_form_submit($form, &$form_state) {
 
+  // drupal_set_message('За раз добавляется 25 наименований, послед. form: <pre>' . print_r($form_state, true) . '</pre>');
   require_once(drupal_get_path('module', 'kladr') .'/kladr.taxonomy.inc');
 
-  switch ($form['#post']['op']) {
+  switch ($form_state['values']['op']) {
 
     case t("Load KLADR to taxonomy vocabulary"):
       kladr_create();
@@ -77,5 +76,4 @@ function kladr_form_submit($form, &$form_state) {
     // Add more cases to trigger batch operations for more buttons.
 
   }
-
 }
